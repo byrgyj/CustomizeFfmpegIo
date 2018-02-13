@@ -33,8 +33,10 @@ bool OutputSource::init() {
 		return false;
 	}
 
-	char *url = "out1.flv";
-	int ret = avformat_alloc_output_context2(&mOutputCtx, NULL, NULL, url);
+	int ret = avformat_alloc_output_context2(&mOutputCtx, NULL, "mpegts", NULL);
+	if (ret < 0){
+		return false;
+	}
 
 	char error[512] = { 0 };
 	av_strerror(ret, error, sizeof(error));
@@ -44,17 +46,17 @@ bool OutputSource::init() {
 	uint8_t *buffer = (uint8_t*) av_malloc(size);
 
 	AVIOContext *outAvio = avio_alloc_context(buffer, size, 1, NULL, NULL, outputWritePacket, NULL);
-	//mOutputCtx->pb = outAvio;
+	mOutputCtx->pb = outAvio;
 
 	for (int i = 0; i < mInputCtx->nb_streams; i++){
 		AVStream *stream = avformat_new_stream(mOutputCtx, NULL);
 		avcodec_parameters_copy(stream->codecpar, mInputCtx->streams[i]->codecpar);
 	}
 
-	ret = avio_open(&mOutputCtx->pb, url, AVIO_FLAG_READ_WRITE);
+	//ret = avio_open(&mOutputCtx->pb, url, AVIO_FLAG_READ_WRITE);
 	ret = avformat_write_header(mOutputCtx, NULL);
 
-	return true;
+	return ret == 0;
 }
 
 void OutputSource::writePacket(AVPacket *pkt){

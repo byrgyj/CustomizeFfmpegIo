@@ -64,8 +64,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>D:\MinGW\msys\1.0\home\gongyanjun\ffmpeg\include;$(IncludePath)</IncludePath>
-    <LibraryPath>D:\MinGW\msys\1.0\home\gongyanjun\ffmpeg\bin;$(LibraryPath)</LibraryPath>
+    <IncludePath>./include/;$(IncludePath)</IncludePath>
+    <LibraryPath>./lib/;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
