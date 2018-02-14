@@ -3,6 +3,14 @@
 
 FILE *gOutPut = NULL;
 
+struct OutPutParameter {
+	char *format;
+	char *output_file;
+};
+OutPutParameter gOP[] = { 
+	{ "mpegts", "out.ts"},
+	{ "flv", "out.flv" },
+};
 int outputWritePacket(void *opaque, uint8_t *buf, int buf_size){
 	if (gOutPut != NULL){
 		int sz = fwrite(buf, 1, buf_size, gOutPut);
@@ -27,33 +35,39 @@ OutputSource::~OutputSource()
 }
 
 bool OutputSource::init() {
-
-	gOutPut = fopen("./fmp4/out.ts", "wb");
+	int index = 1;
+	gOutPut = fopen(gOP[index].output_file, "wb");
 	if (gOutPut == NULL){
 		return false;
 	}
 
-	int ret = avformat_alloc_output_context2(&mOutputCtx, NULL, "mpegts", NULL);
+	int ret = avformat_alloc_output_context2(&mOutputCtx, NULL, gOP[index].format, NULL); 
 	if (ret < 0){
 		return false;
 	}
 
-	char error[512] = { 0 };
-	av_strerror(ret, error, sizeof(error));
-
+	//char error[512] = { 0 };
+	//av_strerror(ret, error, sizeof(error));
 
 	int size = 1024;
-	uint8_t *buffer = (uint8_t*) av_malloc(size);
-
+	uint8_t *buffer = (uint8_t*) av_mallocz(size);
 	AVIOContext *outAvio = avio_alloc_context(buffer, size, 1, NULL, NULL, outputWritePacket, NULL);
 	mOutputCtx->pb = outAvio;
-
+	mOutputCtx->oformat->flags |= AVFMT_NOFILE;
+	
 	for (int i = 0; i < mInputCtx->nb_streams; i++){
 		AVStream *stream = avformat_new_stream(mOutputCtx, NULL);
+		AVCodecParameters *param = mInputCtx->streams[i]->codecpar;
 		avcodec_parameters_copy(stream->codecpar, mInputCtx->streams[i]->codecpar);
+
+		// 特别注意， 如果不重置为0， 保存成flv文件是，avformat_write_header 会失败。
+		stream->codecpar->codec_tag = 0;
 	}
 
-	//ret = avio_open(&mOutputCtx->pb, url, AVIO_FLAG_READ_WRITE);
+	if (!(mOutputCtx->oformat->flags & AVFMT_NOFILE)){
+		ret = avio_open(&mOutputCtx->pb, gOP[index].output_file, AVIO_FLAG_READ_WRITE);
+	}
+	
 	ret = avformat_write_header(mOutputCtx, NULL);
 
 	return ret == 0;

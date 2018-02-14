@@ -7,17 +7,34 @@
 #include "DolbyAudio.h"
 #include "OutputSource.h"
 
+FILE *logFile = NULL;
+
+void logCallback(void*, int index, const char* fmt, va_list vl){
+	vfprintf(logFile, fmt,vl);
+	fflush(logFile);
+}
+
+
 int _tmain(int argc, _TCHAR* argv[])
 {
+	logFile = fopen("debug.log", "w");
+	av_log_set_level(AV_LOG_DEBUG);
+	av_log_set_callback(logCallback);
+
 // 	Mpegts ts;
 // 	ts.test();
 
 	DolbyAudio *dolbyAudio = new DolbyAudio("./fmp4/init.mp4", "./fmp4/cmaf25397.m4s");
-	dolbyAudio->init();
+	if (!dolbyAudio->init()){
+		goto end;
+	}
 
 
 	OutputSource *outputSource = new OutputSource(dolbyAudio->getContext());
-	outputSource->init();
+	if (!outputSource->init()){
+		goto end;
+	}
+
 	while(true){
 		AVPacket *pkt = dolbyAudio->getPacket();
 		if (pkt == NULL){
@@ -27,8 +44,18 @@ int _tmain(int argc, _TCHAR* argv[])
 		outputSource->writePacket(pkt);
 	}
 
-	delete dolbyAudio;
-	delete outputSource;
+end:
+	if (dolbyAudio != NULL){
+		delete dolbyAudio;
+	}
+	
+	if (outputSource != NULL) {
+		delete outputSource;
+	}
+	
+	if (logFile != NULL){
+		fclose(logFile);
+	}
 
 	return 0;
 }
