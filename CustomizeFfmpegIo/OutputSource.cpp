@@ -8,8 +8,8 @@ struct OutPutParameter {
 	char *output_file;
 };
 OutPutParameter gOP[] = { 
-	{ "mpegts", "out.ts"},
-	{ "flv", "out.flv" },
+	{ "mpegts", "fmp4/out.ts"},
+	{ "flv", "fmp4/out.flv" },
 };
 int outputWritePacket(void *opaque, uint8_t *buf, int buf_size){
 	if (gOutPut != NULL){
@@ -35,7 +35,7 @@ OutputSource::~OutputSource()
 }
 
 bool OutputSource::init() {
-	int index = 1;
+	int index = 0;
 	gOutPut = fopen(gOP[index].output_file, "wb");
 	if (gOutPut == NULL){
 		return false;

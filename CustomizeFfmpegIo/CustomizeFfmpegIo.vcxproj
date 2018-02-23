@@ -141,6 +141,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DolbyAudio.h" />
+    <ClInclude Include="FileFragment.h" />
     <ClInclude Include="Mpegts.h" />
     <ClInclude Include="OutputSource.h" />
     <ClInclude Include="stdafx.h" />
@@ -149,6 +150,7 @@
   <ItemGroup>
     <ClCompile Include="CustomizeFfmpegIo.cpp" />
     <ClCompile Include="DolbyAudio.cpp" />
+    <ClCompile Include="FileFragment.cpp" />
     <ClCompile Include="Mpegts.cpp" />
     <ClCompile Include="OutputSource.cpp" />
     <ClCompile Include="stdafx.cpp">
