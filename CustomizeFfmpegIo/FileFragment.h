@@ -1,9 +1,11 @@
 #pragma once
 #include "stdafx.h"
+
+#define USE_VIDEO_1
 class FileFragment
 {
 public:
-	FileFragment(std::string file);
+	FileFragment(std::string &file);
 	~FileFragment();
 
 	void segmentFile();

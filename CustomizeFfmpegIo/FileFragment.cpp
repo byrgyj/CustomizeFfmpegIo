@@ -6,6 +6,8 @@ struct DataSegment{
 	int dataSize;
 };
 
+#ifdef USE_VIDEO_1
+// for 20s.mp4
 DataSegment segments[] = {
 	{1227, 52 + 52 + 1900 + 2132941 },
 	{2136172, 52 + 52 + 1344 + 1168020 },
@@ -15,8 +17,19 @@ DataSegment segments[] = {
 	{7672054, 52 + 52 + 1340 + 1559102 },
 	{9232600, 52 + 52 + 972 + 1235772 + 338}
 };
+#else
+// for 720p_combine.mp4
+DataSegment segments[] = {
+	{1305,    24 + 52 + 52 + 4216 + 1938856 },
+	{1944505, 24 + 52 + 52 + 1344 + 889585 },
+	{2835562, 24 + 52 + 52 + 1340 + 740735 },
+	{3577765, 24 + 52 + 52 + 1344 + 646075 },
+	{4225312, 24 + 52 + 52 + 1344 + 727680 },
+	{4954464, 24 + 52 + 52 + 1340 + 969323 }
+};
+#endif
 
-FileFragment::FileFragment(std::string file){
+FileFragment::FileFragment(std::string &file){
 	mFile = fopen(file.c_str(), "rb");
 }
 
@@ -32,13 +45,23 @@ void FileFragment::segmentFile(){
 		return;
 	}
 
-	int headerSize = 24 + 1203;
-
+	int headerSize = 0;
+#ifdef USE_VIDEO_1
+	// for 20s.mp4
+	headerSize = 24 + 1203;
+#else
+	// for 720p_combine.mp4
+	headerSize = 24 + 1281;
+#endif
 	char *headerBuffer = new char[headerSize];
-	memset(headerBuffer, 0, headerSize);
-	fread(headerBuffer, 1, headerSize, mFile);
-	saveToFile("fmp4/header.mp4", headerBuffer, headerSize);
+	if (headerBuffer != NULL){
+		memset(headerBuffer, 0, headerSize);
+		fread(headerBuffer, 1, headerSize, mFile);
+		saveToFile("fmp4/header.mp4", headerBuffer, headerSize);
 
+		delete headerBuffer;
+	}
+	
 
 	for (int i = 0; i < _countof(segments); i++){
 		DataSegment ds = segments[i];
