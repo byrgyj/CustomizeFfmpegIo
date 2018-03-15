@@ -20,7 +20,7 @@ int outputWritePacket(void *opaque, uint8_t *buf, int buf_size){
 }
 
 
-OutputSource::OutputSource(AVFormatContext *inputCtx) : mInputCtx(inputCtx) {
+OutputSource::OutputSource(AVFormatContext *inputCtx) : mInputCtx(inputCtx), mLastVideoDts(-1), mVideoPktCount(0) {
 	
 }
 
@@ -73,14 +73,33 @@ bool OutputSource::init() {
 	return ret == 0;
 }
 
-void OutputSource::writePacket(AVPacket *pkt){
+int OutputSource::writePacket(AVPacket *pkt){
 	if (pkt == NULL){
-		return;
+		return -1;
 	}
+
+	if (pkt->stream_index == 0){
+		mVideoPktCount++;
+		printf("video count:%d \n", mVideoPktCount);
+		int key = pkt->flags & AV_PKT_FLAG_KEY;
+		if (pkt->flags & AV_PKT_FLAG_KEY){
+			printf("key");
+		}
+		if (pkt->dts == AV_NOPTS_VALUE || pkt->pts == AV_NOPTS_VALUE){
+			AVRational streamTimeBase = mInputCtx->streams[0]->time_base;
+			AVRational  r_rate = mInputCtx->streams[0]->r_frame_rate;
+			int64_t calcDuration = streamTimeBase.den/r_rate.num;
+			pkt->dts = pkt->pts = mLastVideoDts + calcDuration;
+		}
+
+		mLastVideoDts = pkt->dts;
+	}
+
 
 	pkt->pts = av_rescale_q_rnd(pkt->pts, mInputCtx->streams[pkt->stream_index]->time_base, mOutputCtx->streams[pkt->stream_index]->time_base, (AVRounding) (AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 	pkt->dts = av_rescale_q_rnd(pkt->dts, mInputCtx->streams[pkt->stream_index]->time_base, mOutputCtx->streams[pkt->stream_index]->time_base, (AVRounding) (AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
 	pkt->duration = av_rescale_q(pkt->duration, mInputCtx->streams[pkt->stream_index]->time_base, mOutputCtx->streams[pkt->stream_index]->time_base);
 
 	int ret = av_interleaved_write_frame(mOutputCtx, pkt);
+	return ret;
 }

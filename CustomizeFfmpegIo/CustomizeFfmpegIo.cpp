@@ -7,6 +7,7 @@
 #include "DolbyAudio.h"
 #include "OutputSource.h"
 #include "FileFragment.h"
+#include "FFmpegReadFile.h"
 
 FILE *logFile = NULL;
 
@@ -19,10 +20,10 @@ void logCallback(void*, int index, const char* fmt, va_list vl){
 int _tmain(int argc, _TCHAR* argv[])
 {
 	logFile = fopen("debug.log", "w");
-	av_log_set_level(AV_LOG_DEBUG);
+	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 1;
+	int debugIndex = 3;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -60,6 +61,36 @@ end:
 		}
 		if (outputSource != NULL) {
 			delete outputSource;
+		}
+	} else if (debugIndex == 3){
+		std::string file = "./4k/f96052b8c9f468eb2bc116ceb3809842 (17).ts";
+		FFmpegReadFile ff(file);
+		if (!ff.init()){
+			return false;
+		}
+
+		OutputSource *out = new OutputSource(ff.getContext());
+		if (!out->init()){
+			delete out;
+			return 0;
+		}
+
+		AVPacket *pkt = NULL;
+		do 
+		{
+			pkt = ff.getPacket(M_ALL);
+			if(pkt != NULL){
+				if (out->writePacket(pkt) <0){
+					printf("write failed");
+				}
+				av_packet_free(&pkt);
+			} else {
+				break;
+			}
+		} while (true);
+
+		if (out != NULL){
+			delete out;
 		}
 	}
 

@@ -12,9 +12,13 @@ public:
 
 	bool init();
 
-	void writePacket(AVPacket *pkt);
+	int writePacket(AVPacket *pkt);
 private:
 	AVFormatContext *mOutputCtx;
 	AVFormatContext *mInputCtx;
+	int64_t mLastVideoDts;
+
+	//
+	int mVideoPktCount;
 };
 
