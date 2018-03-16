@@ -20,7 +20,7 @@ int outputWritePacket(void *opaque, uint8_t *buf, int buf_size){
 }
 
 
-OutputSource::OutputSource(AVFormatContext *inputCtx) : mInputCtx(inputCtx), mLastVideoDts(-1), mVideoPktCount(0) {
+OutputSource::OutputSource(AVFormatContext *inputCtx) : mInputCtx(inputCtx), mLastVideoDts(-1), mVideoPktCount(0),mLastMaxVideoPts(0) {
 	
 }
 
@@ -80,18 +80,25 @@ int OutputSource::writePacket(AVPacket *pkt){
 
 	if (pkt->stream_index == 0){
 		mVideoPktCount++;
-		printf("video count:%d \n", mVideoPktCount);
+		
 		int key = pkt->flags & AV_PKT_FLAG_KEY;
 		if (pkt->flags & AV_PKT_FLAG_KEY){
-			printf("key");
+			printf("key frame");
+			//av_log(NULL, AV_LOG_INFO, "key frame \n");
 		}
 		if (pkt->dts == AV_NOPTS_VALUE || pkt->pts == AV_NOPTS_VALUE){
 			AVRational streamTimeBase = mInputCtx->streams[0]->time_base;
 			AVRational  r_rate = mInputCtx->streams[0]->r_frame_rate;
+			//double v = av_q2d(r_rate);
+
 			int64_t calcDuration = streamTimeBase.den/r_rate.num;
-			pkt->dts = pkt->pts = mLastVideoDts + calcDuration;
+			pkt->dts = mLastVideoDts + calcDuration;
+			pkt->pts = mLastMaxVideoPts + calcDuration;
 		}
 
+		//av_log(NULL, AV_LOG_INFO, "video index:%d, pts:%lld, dts:%lld, cur_dts-last_dts:%d\n", mVideoPktCount, pkt->pts, pkt->dts, pkt->dts - mLastVideoDts);
+		printf("video index:%d, pts:%lld, dts:%lld, cur_dts-last_dts:%d\n", mVideoPktCount, pkt->pts, pkt->dts, pkt->dts - mLastVideoDts);
+		mLastMaxVideoPts = mLastMaxVideoPts > pkt->pts ? mLastMaxVideoPts : pkt->pts;
 		mLastVideoDts = pkt->dts;
 	}
 

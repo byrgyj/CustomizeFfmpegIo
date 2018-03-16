@@ -17,6 +17,7 @@ private:
 	AVFormatContext *mOutputCtx;
 	AVFormatContext *mInputCtx;
 	int64_t mLastVideoDts;
+	int64_t mLastMaxVideoPts;
 
 	//
 	int mVideoPktCount;
