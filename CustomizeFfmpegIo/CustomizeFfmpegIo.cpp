@@ -22,7 +22,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 4;
+	int debugIndex = 5;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -130,6 +130,38 @@ end:
 		if (out != NULL){
 			delete out;
 		}
+	} else if (debugIndex == 5){
+		std::string file = "./ts/a883eace36ce22f8e788b2ed3463b7c7 (2).ts";
+		FFmpegReadFile ff(file);
+		if (!ff.init()){
+			return false;
+		}
+
+		std::string file2 = "./ts/a883eace36ce22f8e788b2ed3463b7c7 (3).ts";
+		CustomizedFile ffCostimize(file2);
+		if (!ffCostimize.init(ff.getContext())){
+			return false;
+		}
+
+		OutputSource *out = new OutputSource(ffCostimize.getContext());
+		if (!out->init()){
+			delete out;
+			return 0;
+		}
+
+		do 
+		{
+			AVPacket *pkt = ffCostimize.getPacket(M_ALL);
+			if (pkt == NULL){
+				break;
+			}
+			
+			if (out->writePacket(pkt) <0){
+				printf("write failed");
+			}
+
+			av_packet_free(&pkt);
+		} while (true);
 	}
 
 	if (logFile != NULL){
