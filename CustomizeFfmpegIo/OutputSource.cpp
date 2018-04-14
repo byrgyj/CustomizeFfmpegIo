@@ -35,7 +35,7 @@ OutputSource::~OutputSource()
 }
 
 bool OutputSource::init() {
-	int index = 0;
+	int index = 1;
 	gOutPut = fopen(gOP[index].output_file, "wb");
 	if (gOutPut == NULL){
 		return false;

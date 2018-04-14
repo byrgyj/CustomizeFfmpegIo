@@ -16,14 +16,13 @@ void logCallback(void*, int index, const char* fmt, va_list vl){
 	fflush(logFile);
 }
 
-
 int _tmain(int argc, _TCHAR* argv[])
 {
 	logFile = fopen("debug.log", "w");
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 3;
+	int debugIndex = 4;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -80,6 +79,45 @@ end:
 		{
 			pkt = ff.getPacket(M_ALL);
 			if(pkt != NULL){
+				if (out->writePacket(pkt) <0){
+					printf("write failed");
+				}
+				av_packet_free(&pkt);
+			} else {
+				break;
+			}
+		} while (true);
+
+		if (out != NULL){
+			delete out;
+		}
+	} else if (debugIndex == 4){
+		std::string file = "./ffd5.f4v";
+		FFmpegReadFile ff(file);
+		if (!ff.init()){
+			return false;
+		}
+
+		OutputSource *out = new OutputSource(ff.getContext());
+		if (!out->init()){
+			delete out;
+			return 0;
+		}
+
+		AVPacket *pkt = NULL;
+		do 
+		{
+			pkt = ff.getPacket(M_ALL);
+			if(pkt != NULL){
+				if (pkt->stream_index == 0){
+					uint8_t * data = pkt->data;
+					if (pkt->flags & AV_PKT_FLAG_KEY){
+						printf("key");
+					} else {
+						printf("no key");
+					}
+				}
+
 				if (out->writePacket(pkt) <0){
 					printf("write failed");
 				}
