@@ -33,6 +33,10 @@ FFmpegReadFile::FFmpegReadFile(std::string &file) : mFile(file){
 
 
 FFmpegReadFile::~FFmpegReadFile(void){
+	if (mAvFmtCtx != NULL){
+		avformat_close_input(&mAvFmtCtx);
+	}
+	
 }
 
 bool FFmpegReadFile::init() {
@@ -90,10 +94,65 @@ AVPacket *FFmpegReadFile::getPacket(int type){
 	return pkt;
 }
 
-int FFmpegReadFile::seekTo(int32_t msec){
-	//int ret =av_seek_frame(mAvFmtCtx, 0, mAvFmtCtx->streams[0]->time_base.den * msec / 1000, AVSEEK_FLAG_BACKWARD);
+//////////////////////////////////////////////
+CustomizedFile::CustomizedFile(std::string &file) : FFmpegReadFile(file){
 
-	double v = msec / 1000;
-	int ret =av_seek_frame(mAvFmtCtx, -1, v * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
-	return ret;
+}
+CustomizedFile::~CustomizedFile(){
+
+}
+bool CustomizedFile::init(const AVFormatContext *otherFmt){
+	gFile = fopen(mFile.c_str(), "rb");
+	if (gFile == NULL){
+		return false;
+	}
+
+	int bufferSize = 1024;
+	uint8_t *buffer = (uint8_t*)av_mallocz(bufferSize);
+	AVIOContext *ioContext = avio_alloc_context(buffer, bufferSize, 0, NULL, readPacket, NULL, NULL);
+
+	mAvFmtCtx = avformat_alloc_context();
+
+	mAvFmtCtx->pb = ioContext;
+
+	int ret = avformat_open_input(&mAvFmtCtx, NULL, NULL, NULL);
+	if (ret <0){
+		return false;
+	}
+	ret = customize_stream_info(mAvFmtCtx, otherFmt);
+	if (ret < 0){
+		return false;
+	}
+
+	return true;
+}
+int CustomizedFile::customize_stream_info(AVFormatContext *avformat,const AVFormatContext *otherFmt){
+	if (avformat == NULL){
+		return -1;
+	}
+
+	int audio_index = 1;
+	int video_index = 0;
+	if (avformat->nb_streams == 0){
+		AVStream *st = avformat_new_stream(avformat, NULL);
+		if (st == NULL){
+			return -1;
+		}
+		st->codec->codec_type = AVMEDIA_TYPE_VIDEO;
+
+		AVStream *st_audio = avformat_new_stream(avformat, NULL);
+		if (st_audio == NULL){
+			return -1;
+		}
+		st_audio->codec->codec_type = AVMEDIA_TYPE_AUDIO;
+
+	}
+
+	avcodec_parameters_copy(avformat->streams[0]->codecpar, otherFmt->streams[0]->codecpar);
+	avcodec_parameters_copy(avformat->streams[1]->codecpar, otherFmt->streams[1]->codecpar);
+
+	avformat->streams[0]->time_base = otherFmt->streams[0]->time_base;
+	avformat->streams[0]->r_frame_rate = otherFmt->streams[0]->r_frame_rate;
+
+	return 0;
 }
