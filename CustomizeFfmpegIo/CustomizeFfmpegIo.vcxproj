@@ -143,6 +143,7 @@
     <ClInclude Include="DolbyAudio.h" />
     <ClInclude Include="FFmpegReadFile.h" />
     <ClInclude Include="FileFragment.h" />
+    <ClInclude Include="FileMemoryCheck.h" />
     <ClInclude Include="Mpegts.h" />
     <ClInclude Include="OutputSource.h" />
     <ClInclude Include="stdafx.h" />
@@ -153,6 +154,7 @@
     <ClCompile Include="DolbyAudio.cpp" />
     <ClCompile Include="FFmpegReadFile.cpp" />
     <ClCompile Include="FileFragment.cpp" />
+    <ClCompile Include="FileMemoryCheck.cpp" />
     <ClCompile Include="Mpegts.cpp" />
     <ClCompile Include="OutputSource.cpp" />
     <ClCompile Include="stdafx.cpp">

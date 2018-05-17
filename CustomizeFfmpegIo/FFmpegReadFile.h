@@ -13,6 +13,8 @@ public:
 
 	AVPacket *getPacket(int type);
 	AVFormatContext *getContext() { return mAvFmtCtx; }
+
+	int seekTo(int32_t msec);
 private:
 	std::string mFile;
 	AVFormatContext *mAvFmtCtx;

@@ -18,6 +18,14 @@ int readPacket(void *opaque, uint8_t *buf, int buf_size)
 	return readSize;
 }
 
+int64_t seekCallback(void *opaque, int64_t offset, int whence){
+	if (whence == AVSEEK_SIZE){
+		return 2922084;
+	}
+
+	printf("offset:%lld \n", offset);
+	return offset;
+}
 
 FFmpegReadFile::FFmpegReadFile(std::string &file) : mFile(file){
 	av_register_all();
@@ -63,6 +71,8 @@ AVPacket *FFmpegReadFile::getPacket(int type){
 
 		int ret = av_read_frame(mAvFmtCtx, pkt);
 		if (ret < 0){
+			char szBuffer[512] = { 0 };
+			av_strerror(ret, szBuffer, sizeof(szBuffer));
 			av_packet_free(&pkt);
 			return NULL;
 		}
@@ -78,4 +88,12 @@ AVPacket *FFmpegReadFile::getPacket(int type){
 
 
 	return pkt;
+}
+
+int FFmpegReadFile::seekTo(int32_t msec){
+	//int ret =av_seek_frame(mAvFmtCtx, 0, mAvFmtCtx->streams[0]->time_base.den * msec / 1000, AVSEEK_FLAG_BACKWARD);
+
+	double v = msec / 1000;
+	int ret =av_seek_frame(mAvFmtCtx, -1, v * AV_TIME_BASE, AVSEEK_FLAG_BACKWARD);
+	return ret;
 }

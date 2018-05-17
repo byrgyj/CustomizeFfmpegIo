@@ -8,6 +8,7 @@
 #include "OutputSource.h"
 #include "FileFragment.h"
 #include "FFmpegReadFile.h"
+#include "FileMemoryCheck.h"
 
 FILE *logFile = NULL;
 
@@ -23,7 +24,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 3;
+	int debugIndex = 4;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -35,7 +36,6 @@ int _tmain(int argc, _TCHAR* argv[])
 #else
 		srcFile = "fmp4/720p_combine.mp4";
 #endif
-
 		FileFragment fo(srcFile);
 		fo.segmentFile();
 	} else if (debugIndex == 2) {
@@ -63,7 +63,7 @@ end:
 			delete outputSource;
 		}
 	} else if (debugIndex == 3){
-		std::string file = "./4k/f96052b8c9f468eb2bc116ceb3809842 (17).ts";
+		std::string file = "audio_17864900-17960900.mp4";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
@@ -75,11 +75,16 @@ end:
 			return 0;
 		}
 
+		ff.seekTo(3000);
 		AVPacket *pkt = NULL;
 		do 
 		{
-			pkt = ff.getPacket(M_ALL);
+			pkt = ff.getPacket(M_Video);
 			if(pkt != NULL){
+				if (pkt->flags & AV_PKT_FLAG_KEY){
+					printf("");
+				}
+
 				if (out->writePacket(pkt) <0){
 					printf("write failed");
 				}
@@ -92,6 +97,9 @@ end:
 		if (out != NULL){
 			delete out;
 		}
+	} else if (debugIndex == 4){
+		FileMemoryCheck fileCheck("error.mp4");
+		fileCheck.process();
 	}
 
 	if (logFile != NULL){
