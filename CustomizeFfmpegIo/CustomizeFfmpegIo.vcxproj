@@ -141,6 +141,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DolbyAudio.h" />
+    <ClInclude Include="Eac3Parser.h" />
     <ClInclude Include="FFmpegReadFile.h" />
     <ClInclude Include="FileFragment.h" />
     <ClInclude Include="FileMemoryCheck.h" />
@@ -152,6 +153,7 @@
   <ItemGroup>
     <ClCompile Include="CustomizeFfmpegIo.cpp" />
     <ClCompile Include="DolbyAudio.cpp" />
+    <ClCompile Include="Eac3Parser.cpp" />
     <ClCompile Include="FFmpegReadFile.cpp" />
     <ClCompile Include="FileFragment.cpp" />
     <ClCompile Include="FileMemoryCheck.cpp" />

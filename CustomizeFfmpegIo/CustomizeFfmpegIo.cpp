@@ -9,6 +9,7 @@
 #include "FileFragment.h"
 #include "FFmpegReadFile.h"
 #include "FileMemoryCheck.h"
+#include "Eac3Parser.h"
 
 FILE *logFile = NULL;
 
@@ -23,7 +24,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 5;
+	int debugIndex = 6;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -62,7 +63,7 @@ end:
 			delete outputSource;
 		}
 	} else if (debugIndex == 3){
-		std::string file = "./4k/f96052b8c9f468eb2bc116ceb3809842 (17).ts";
+		std::string file = "header_7474320.mp4";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
@@ -162,6 +163,11 @@ end:
 
 			av_packet_free(&pkt);
 		} while (true);
+	} else if (debugIndex == 6){
+		Eac3Parser parser("./data/audio/eac3.mp4");
+		if (parser.init()){
+			parser.parse();
+		}
 	}
 
 	if (logFile != NULL){
