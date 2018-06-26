@@ -51,7 +51,9 @@ bool FFmpegReadFile::init() {
 
 	mAvFmtCtx = avformat_alloc_context();
 
+
 	mAvFmtCtx->pb = ioContext;
+    //mAvFmtCtx->flags =AVFMT_FLAG_NOPARSE | AVFMT_FLAG_NOFILLIN;
 
 	int ret = avformat_open_input(&mAvFmtCtx, NULL, NULL, NULL);
 	if (ret <0){
