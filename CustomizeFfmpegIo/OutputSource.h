@@ -23,3 +23,14 @@ private:
 	int mVideoPktCount;
 };
 
+class OutputAudio {
+public:
+    OutputAudio();
+    ~OutputAudio();
+
+    bool init();
+    int writePacket(AVPacket *pkt);
+
+private:
+    AVFormatContext *mOutputCtx;
+};

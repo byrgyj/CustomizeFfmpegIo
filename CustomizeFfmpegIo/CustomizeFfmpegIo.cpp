@@ -24,7 +24,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 6;
+	int debugIndex = 7;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -164,11 +164,23 @@ end:
 			av_packet_free(&pkt);
 		} while (true);
 	} else if (debugIndex == 6){
-		Eac3Parser parser("./data/audio/eac3.mp4");
+		Eac3Parser parser("./out_1.mp4");
 		if (parser.init()){
 			parser.parse();
 		}
-	}
+	} else if (debugIndex == 7) {
+        Eac3Context  ec;
+        AVPacket *pkt = NULL;
+        do 
+        {
+            pkt = ec.readPacket();
+            if (pkt == NULL) {
+                break;
+            }
+
+            printf("pkt->size:%d pkt->pts:%lld\n", pkt->size, pkt->pts);
+        } while (pkt != NULL);
+    }
 
 	if (logFile != NULL){
 		fclose(logFile);
