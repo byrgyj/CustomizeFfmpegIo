@@ -179,7 +179,9 @@ end:
             }
 
             printf("pkt->size:%d pkt->pts:%lld\n", pkt->size, pkt->pts);
-        } while (pkt != NULL);
+            av_packet_unref(pkt);
+            av_packet_free(&pkt);
+        } while (true);
     }
 
 	if (logFile != NULL){

@@ -133,7 +133,9 @@ DataBuffer::DataBuffer(std::string filePath) : mReadIndex(0), mWriteIndex(0) {
     fseek(mFile, 0x9BE, SEEK_SET);
 }
 DataBuffer::~DataBuffer() {
-
+    if (mFile != NULL) {
+        fclose(mFile);
+    }
 }
 
 char *DataBuffer::getData(int &dataSize) {
@@ -180,7 +182,9 @@ Eac3Context::Eac3Context() : mDataIndex(0) {
     mSeekTime = 0;
 }
 Eac3Context::~Eac3Context() {
-
+    if (mDataSource != NULL) {
+        delete mDataSource;
+    }
 }
 
 AVPacket *Eac3Context::readPacket() {
@@ -204,7 +208,7 @@ AVPacket *Eac3Context::readPacket() {
         int size = currentFrameSize(mBuffer + pos);
         if (size > 0) {
             AVPacket *pkt = av_packet_alloc();
-            pkt->data = (uint8_t*)av_mallocz(size);
+            av_new_packet(pkt, size);
             memcpy(pkt->data, mBuffer + pos, size);
             pkt->pts = pkt->dts = mSeekTime;
             pkt->duration = 0;
