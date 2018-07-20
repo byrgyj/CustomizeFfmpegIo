@@ -24,10 +24,13 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 7;
+    int value = 0x12345678;
+    int *address = &value;
+
+	int debugIndex = 0;
 	if (debugIndex == 0){
 		Mpegts ts;
-		ts.test();
+		ts.testPtsDts();
 	} else if (debugIndex == 1){
 		std::string srcFile;
 
@@ -63,11 +66,13 @@ end:
 			delete outputSource;
 		}
 	} else if (debugIndex == 3){
-		std::string file = "header_7474320.mp4";
+		std::string file = "out_1.mp4";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
 		}
+
+        AVCodecParameters *param = ff.getVideoParam();
 
 		OutputSource *out = new OutputSource(ff.getContext());
 		if (!out->init()){
@@ -93,7 +98,7 @@ end:
 			delete out;
 		}
 	} else if (debugIndex == 4){
-		std::string file = "./ffd5.f4v";
+		std::string file = "./bd5cbc627975456aa65eb3eb6ff8c678.ts";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
@@ -106,6 +111,8 @@ end:
 		}
 
 		AVPacket *pkt = NULL;
+        int64_t  lastDts = 0;
+        int videoPacketCount = 0;
 		do 
 		{
 			pkt = ff.getPacket(M_ALL);
@@ -113,15 +120,32 @@ end:
 				if (pkt->stream_index == 0){
 					uint8_t * data = pkt->data;
 					if (pkt->flags & AV_PKT_FLAG_KEY){
-						printf("key");
+						//printf("key");
 					} else {
-						printf("no key");
+						//printf("no key");
 					}
-				}
 
-				if (out->writePacket(pkt) <0){
-					printf("write failed");
+                    videoPacketCount++;
+                    //printf("pts:%lld, dts:%lld\n", pkt->pts, pkt->dts);
+                    if (videoPacketCount == 190) {
+                        printf("stop");
+                    }
+
+                    if (pkt->size < 10) {
+                        printf("stop");
+                    }
+
+                    if (pkt->pts == AV_NOPTS_VALUE || pkt->dts == AV_NOPTS_VALUE) {
+                        printf("invalidate pts, key frame:%d", pkt->flags & AV_PKT_FLAG_KEY);
+                    } else {
+                        lastDts = pkt->dts;
+                    }
+
 				}
+// 
+// 				if (out->writePacket(pkt) <0){
+// 					printf("write failed");
+// 				}
 				av_packet_free(&pkt);
 			} else {
 				break;

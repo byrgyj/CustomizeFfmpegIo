@@ -53,7 +53,8 @@ bool FFmpegReadFile::init() {
 
 
 	mAvFmtCtx->pb = ioContext;
-    //mAvFmtCtx->flags =AVFMT_FLAG_NOPARSE | AVFMT_FLAG_NOFILLIN;
+    mAvFmtCtx->flags |= AVFMT_FLAG_GENPTS;
+    mAvFmtCtx->debug |= FF_FDEBUG_TS;
 
 	int ret = avformat_open_input(&mAvFmtCtx, NULL, NULL, NULL);
 	if (ret <0){
@@ -82,6 +83,10 @@ AVPacket *FFmpegReadFile::getPacket(int type){
 			av_packet_free(&pkt);
 			return NULL;
 		}
+
+        if (pkt->stream_index == 0){
+            av_log(NULL, AV_LOG_INFO, "av_read_frame end, pts:%lld, dts:%lld \n", pkt->pts, pkt->dts);
+        }
 
 		if (pkt->stream_index == type || type == M_ALL){
 			break;
