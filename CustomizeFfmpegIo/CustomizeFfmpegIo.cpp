@@ -10,6 +10,8 @@
 #include "FFmpegReadFile.h"
 #include "FileMemoryCheck.h"
 #include "Eac3Parser.h"
+#include "DynamicFunction.h"
+#include <set>
 
 FILE *logFile = NULL;
 
@@ -24,10 +26,17 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-    int value = 0x12345678;
-    int *address = &value;
+//     DynamicFunction df;
+//     if (df.init()) {
+//        AVFormatContext *ctx = NULL;
+//         int ret = df.wrapper_avformat_open_input(&ctx, "./3f39abf673c468ef68fd00887a13e02f.f4v", NULL, NULL);
+//         ret = df.wrapper_avformat_find_stream_info(ctx, NULL);
+//         return 0;
+//     }
 
-	int debugIndex = 0;
+
+    
+	int debugIndex = 4;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.testPtsDts();
@@ -98,7 +107,7 @@ end:
 			delete out;
 		}
 	} else if (debugIndex == 4){
-		std::string file = "./bd5cbc627975456aa65eb3eb6ff8c678.ts";
+		std::string file = "./gmz3.ts";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
@@ -113,6 +122,9 @@ end:
 		AVPacket *pkt = NULL;
         int64_t  lastDts = 0;
         int videoPacketCount = 0;
+
+        std::set<int64_t> ptsSet;
+        std::set<int64_t> dtsSet;
 		do 
 		{
 			pkt = ff.getPacket(M_ALL);
@@ -125,20 +137,31 @@ end:
 						//printf("no key");
 					}
 
+                    //av_log(NULL, AV_LOG_DEBUG, "VIDEO INFO:dts:%lld, pts:%lld \n", pkt->dts, pkt->pts);
+
                     videoPacketCount++;
                     //printf("pts:%lld, dts:%lld\n", pkt->pts, pkt->dts);
-                    if (videoPacketCount == 190) {
-                        printf("stop");
-                    }
-
-                    if (pkt->size < 10) {
-                        printf("stop");
-                    }
-
                     if (pkt->pts == AV_NOPTS_VALUE || pkt->dts == AV_NOPTS_VALUE) {
                         printf("invalidate pts, key frame:%d", pkt->flags & AV_PKT_FLAG_KEY);
                     } else {
                         lastDts = pkt->dts;
+
+                        if (pkt->pts < pkt->dts) {
+                            printf("invalidate");
+                        }
+
+                        if (ptsSet.find(pkt->pts) != ptsSet.end()){
+                            printf("invalidate pts");
+                        } else {
+                            ptsSet.insert(pkt->pts);
+                        }
+                        
+                        if (dtsSet.find(pkt->dts) != dtsSet.end()) {
+                            printf("invalidate dts");
+                        } else {
+                            dtsSet.insert(pkt->dts);
+                        }
+                        
                     }
 
 				}
@@ -151,6 +174,25 @@ end:
 				break;
 			}
 		} while (true);
+
+
+        std::set<int64_t>::iterator ptsIt = ptsSet.begin();
+        std::set<int64_t>::iterator dtsIt = dtsSet.begin();
+
+        int64_t lastPts = 0;
+        while(ptsIt != ptsSet.end()){
+            av_log(NULL, AV_LOG_DEBUG, "VIDEO_INFO_PTS: pts:%lld, distance:%lld \n", *ptsIt, *ptsIt - lastPts);
+            lastPts = *ptsIt;
+            ptsIt++;
+        }
+
+        lastDts = 0;
+        while(dtsIt != dtsSet.end()){
+            av_log(NULL, AV_LOG_DEBUG, "VIDEO_INFO_DTS: pts:%lld, distance:%lld \n", *dtsIt, *dtsIt - lastDts);
+            lastDts = *dtsIt;
+            dtsIt++;
+        }
+
 
 		if (out != NULL){
 			delete out;
