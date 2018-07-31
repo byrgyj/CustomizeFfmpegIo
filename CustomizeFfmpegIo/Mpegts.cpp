@@ -96,20 +96,6 @@ void Mpegts::test(){
 	if (fileDest != NULL){
 		fclose(fileDest);
 	}
-
-
-// 	int pmtPid = -1;
-// 	for (int i = 0 ; i < 4; i++){
-// 		uint8_t *index = data + i * TS_PACKET_SIZE;
-// 		int high = index[1] & 0x1F;
-// 		int pid = ((index[1] & 0x1F) << 8) | index[2];
-// 		if (pid == 0){
-// 		  pmtPid = parsePat(&pat, index + 5);
-// 		} else if (pid == pmtPid){
-// 			memcpy(index + 4, pmtData + 4, TS_PACKET_SIZE - 4);
-// 			break;
-// 		}
-// 	}
 }
 
 int Mpegts::parsePat( TsPatTable * packet, unsigned char * buffer)
@@ -230,13 +216,18 @@ void Mpegts::testPtsDts() {
     }
 
     int bufferSize = 32*1024;
-    int indexArray[4] = { 32* 1024, 10*1024, 888, 25000 }; 
+    int indexArray[] = { 40, 100, 50,  32* 1024, 10*1024, 888, 25000 };
+    int arrayCount = _countof(indexArray);
     uint8_t *buffer = new uint8_t[bufferSize];
     int index = 0;
     while(!feof(f)){
-        int length = fread(buffer, 1, indexArray[index%4], f);
+        int length = fread(buffer, 1, indexArray[index%arrayCount], f);
         parserAllPackets(buffer, length);
         index++;
+    }
+
+    if (buffer != NULL) {
+        delete buffer;
     }
 
     for (std::map<int64_t, int64_t>::iterator it = mPesTime.begin(); it != mPesTime.end(); it++) {
@@ -250,8 +241,17 @@ void Mpegts::parserAllPackets(uint8_t *data, int dataSize) {
         return ;
     }
 
+
+
+    if (dataSize + mCurrentBufferSize < TS_PACKET_SIZE) {
+        memcpy(mCurrentTsPacket + mCurrentBufferSize, data, dataSize);
+        mCurrentBufferSize += dataSize;
+        return;
+    }
+
     int index = 0;
-    int leftData = dataSize;
+    int totalSize = dataSize + mCurrentBufferSize;
+    int leftData = totalSize;
 
     if (mCurrentBufferSize == 0) {
 
@@ -267,30 +267,25 @@ void Mpegts::parserAllPackets(uint8_t *data, int dataSize) {
         } else {
 
         }
-
+        mPacketIndex++;
         index = TS_PACKET_SIZE - mCurrentBufferSize;
+        leftData -= TS_PACKET_SIZE;
     }
 
-    while (index < dataSize) {
-        uint8_t *curData = data + index;
-        if (*curData != 0x47) {
-            index++;
-            leftData--;
-            continue;
-        }
-//         if (data[index] != 0x47){
-//             printf("invalidate packet, %d \n", mPacketIndex);
-//         }
-
+    uint8_t *curData = NULL; 
+    while (index < totalSize) {
+        curData = data + index;
         if (leftData >= TS_PACKET_SIZE) {
             PesTime pt;
             //printf("binary data print2 [%x, %x, %x, %x, %x, %x]", curData[0], curData[1], curData[2], curData[3], curData[4], curData[5]);
             if (parserPacketPts(curData, pt)){
                 printf("parse pts, pts:%lld, dts:%lld", pt.pts, pt.dts);
                 mPesTime.insert(std::make_pair(pt.dts, pt.pts));
+            } else {
+                printf("");
             }
 
-
+            mPacketIndex++;
             leftData -= TS_PACKET_SIZE;
             index += TS_PACKET_SIZE;
         } else {
@@ -299,7 +294,7 @@ void Mpegts::parserAllPackets(uint8_t *data, int dataSize) {
         }
     }
 
-    uint8_t  *lastData = data + index; 
+    curData = data + index; 
     memset(mCurrentTsPacket, 0, TS_PACKET_SIZE);
     if (leftData > 0) {
         memcpy(mCurrentTsPacket, data + index, leftData);
@@ -307,13 +302,9 @@ void Mpegts::parserAllPackets(uint8_t *data, int dataSize) {
     } else {
         mCurrentBufferSize = 0;
     }
-
-
-
 }
 
 bool Mpegts::parserPacketPts(uint8_t *data, PesTime &tm) {
-    mPacketIndex++;
     char sync = data[0];
 
     // sycn flag
