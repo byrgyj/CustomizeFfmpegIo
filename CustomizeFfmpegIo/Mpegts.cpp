@@ -2,8 +2,7 @@
 #include "Mpegts.h"
 
 
-Mpegts::Mpegts(void)
-{
+Mpegts::Mpegts(void) : mCurrentBufferSize(0), mPacketIndex(0) {
 	memset(mPmtData, 0xFF, sizeof(mPmtData));
 	makeTable(mCrcTable);
 }
@@ -97,20 +96,6 @@ void Mpegts::test(){
 	if (fileDest != NULL){
 		fclose(fileDest);
 	}
-
-
-// 	int pmtPid = -1;
-// 	for (int i = 0 ; i < 4; i++){
-// 		uint8_t *index = data + i * TS_PACKET_SIZE;
-// 		int high = index[1] & 0x1F;
-// 		int pid = ((index[1] & 0x1F) << 8) | index[2];
-// 		if (pid == 0){
-// 		  pmtPid = parsePat(&pat, index + 5);
-// 		} else if (pid == pmtPid){
-// 			memcpy(index + 4, pmtData + 4, TS_PACKET_SIZE - 4);
-// 			break;
-// 		}
-// 	}
 }
 
 int Mpegts::parsePat( TsPatTable * packet, unsigned char * buffer)
@@ -223,6 +208,160 @@ int Mpegts::parserPmt(TsPmtTable *packet, uint8_t *buffer)
 	return 0;  
 }
 
+void Mpegts::testPtsDts() {
+    //FILE *f = fopen("./dc36d88ec45cb13e236bb149dde5b76d (2).ts", "rb");
+    FILE *f = fopen("./bd5cbc627975456aa65eb3eb6ff8c678.ts", "rb");
+    if (f == NULL) {
+        return;
+    }
+
+    int bufferSize = 32*1024;
+    int indexArray[] = { 40, 100, 50,  32* 1024, 10*1024, 888, 25000 };
+    int arrayCount = _countof(indexArray);
+    uint8_t *buffer = new uint8_t[bufferSize];
+    int index = 0;
+    while(!feof(f)){
+        int length = fread(buffer, 1, indexArray[index%arrayCount], f);
+        parserAllPackets(buffer, length);
+        index++;
+    }
+
+    if (buffer != NULL) {
+        delete buffer;
+    }
+
+    for (std::map<int64_t, int64_t>::iterator it = mPesTime.begin(); it != mPesTime.end(); it++) {
+        printf ("dts:%lld, pts:%lld \n", it->second, it->first);
+    }
+
+}
+
+void Mpegts::parserAllPackets(uint8_t *data, int dataSize) {
+    if (data == NULL || dataSize <= 0) {
+        return ;
+    }
+
+
+
+    if (dataSize + mCurrentBufferSize < TS_PACKET_SIZE) {
+        memcpy(mCurrentTsPacket + mCurrentBufferSize, data, dataSize);
+        mCurrentBufferSize += dataSize;
+        return;
+    }
+
+    int index = 0;
+    int totalSize = dataSize + mCurrentBufferSize;
+    int leftData = totalSize;
+
+    if (mCurrentBufferSize == 0) {
+
+    } else {
+        memcpy(mCurrentTsPacket + mCurrentBufferSize, data, TS_PACKET_SIZE - mCurrentBufferSize);
+
+       PesTime pt;
+       uint8_t *curPacket = mCurrentTsPacket;
+       //printf("binary data print1 [%x, %x, %x, %x, %x, %x]", mCurrentTsPacket[0], mCurrentTsPacket[1], mCurrentTsPacket[2], mCurrentTsPacket[3], mCurrentTsPacket[4], mCurrentTsPacket[5]);
+        if (parserPacketPts(mCurrentTsPacket, pt)){
+            printf("parse pts, pts:%lld, dts:%lld", pt.pts, pt.dts);
+            mPesTime.insert(std::make_pair(pt.dts, pt.pts));
+        } else {
+
+        }
+        mPacketIndex++;
+        index = TS_PACKET_SIZE - mCurrentBufferSize;
+        leftData -= TS_PACKET_SIZE;
+    }
+
+    uint8_t *curData = NULL; 
+    while (index < totalSize) {
+        curData = data + index;
+        if (leftData >= TS_PACKET_SIZE) {
+            PesTime pt;
+            //printf("binary data print2 [%x, %x, %x, %x, %x, %x]", curData[0], curData[1], curData[2], curData[3], curData[4], curData[5]);
+            if (parserPacketPts(curData, pt)){
+                printf("parse pts, pts:%lld, dts:%lld", pt.pts, pt.dts);
+                mPesTime.insert(std::make_pair(pt.dts, pt.pts));
+            } else {
+                printf("");
+            }
+
+            mPacketIndex++;
+            leftData -= TS_PACKET_SIZE;
+            index += TS_PACKET_SIZE;
+        } else {
+            curData = data + index;
+            break;
+        }
+    }
+
+    curData = data + index; 
+    memset(mCurrentTsPacket, 0, TS_PACKET_SIZE);
+    if (leftData > 0) {
+        memcpy(mCurrentTsPacket, data + index, leftData);
+        mCurrentBufferSize = leftData;
+    } else {
+        mCurrentBufferSize = 0;
+    }
+}
+
+bool Mpegts::parserPacketPts(uint8_t *data, PesTime &tm) {
+    char sync = data[0];
+
+    // sycn flag
+    if (sync != 0x47) {
+        return false;
+    }
+
+    // payload flag
+    if ((data[1] & 0x40) !=  0x40){
+        return false;
+    }
+
+    int adationLength = 0;
+    int  adaption =  (data[3] >> 4)  &  3;
+    if (adaption == 3) {
+        adationLength = data[4] + 1;
+    }
+
+    int index = adationLength + 4;
+    if ( !(data[index] == 0 && data[index + 1] == 0 && data[index + 2] == 1)){
+        return false;
+    }
+
+    index += 3;
+
+    if (data[index] != 0xE0) {
+        return false;
+    }
+
+    index += 4; //
+
+    int hasPts  = data[index];
+    int ptsFlag = (data[index] & 0xC0) >> 6;
+
+    index += 1;
+    int pesLength = data[index];
+
+    index += 1;
+    if (ptsFlag == 2) { // pts
+        tm.dts = tm.pts =  getPts(data + index);
+    } else if (ptsFlag == 3) {// pts dts
+          tm.pts = getPts(data +index);
+          index += 5;
+          tm.dts = getPts(data + index);
+    }
+
+    return true;
+}
+
+int64_t Mpegts::getPts(uint8_t *data) {
+    int64_t ts_32_30 = (int64_t)(*data & 0x0e) << 29;
+    int64_t ts_29_15 = ( ( (data[1] << 8) | data[2] ) >> 1) << 15;
+    int64_t ts_14_0  = ( (data[3] << 8) | data[4] ) >> 1;
+    int64_t ts = ts_32_30 | ts_29_15 | ts_14_0;
+
+    return ts;
+}
 
 
 int Mpegts::makeTable(uint32_t *crc32_table)  

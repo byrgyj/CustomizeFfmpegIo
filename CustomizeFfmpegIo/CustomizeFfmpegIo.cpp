@@ -12,6 +12,9 @@
 #include "Eac3Parser.h"
 #include "decodeVideoToPicture.h"
 #include <list>
+#include "DynamicFunction.h"
+#include <set>
+
 
 FILE *logFile = NULL;
 
@@ -28,9 +31,10 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_callback(logCallback);
 
 	int debugIndex = 8;
+
 	if (debugIndex == 0){
 		Mpegts ts;
-		ts.test();
+		ts.testPtsDts();
 	} else if (debugIndex == 1){
 		std::string srcFile;
 
@@ -66,11 +70,13 @@ end:
 			delete outputSource;
 		}
 	} else if (debugIndex == 3){
-		std::string file = "header_7474320.mp4";
+		std::string file = "out_1.mp4";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
 		}
+
+        AVCodecParameters *param = ff.getVideoParam();
 
 		OutputSource *out = new OutputSource(ff.getContext());
 		if (!out->init()){
@@ -96,7 +102,7 @@ end:
 			delete out;
 		}
 	} else if (debugIndex == 4){
-		std::string file = "./ffd5.f4v";
+		std::string file = "./gmz3.ts";
 		FFmpegReadFile ff(file);
 		if (!ff.init()){
 			return false;
@@ -109,6 +115,11 @@ end:
 		}
 
 		AVPacket *pkt = NULL;
+        int64_t  lastDts = 0;
+        int videoPacketCount = 0;
+
+        std::set<int64_t> ptsSet;
+        std::set<int64_t> dtsSet;
 		do 
 		{
 			pkt = ff.getPacket(M_ALL);
@@ -116,20 +127,67 @@ end:
 				if (pkt->stream_index == 0){
 					uint8_t * data = pkt->data;
 					if (pkt->flags & AV_PKT_FLAG_KEY){
-						printf("key");
+						//printf("key");
 					} else {
-						printf("no key");
+						//printf("no key");
 					}
-				}
 
-				if (out->writePacket(pkt) <0){
-					printf("write failed");
+                    //av_log(NULL, AV_LOG_DEBUG, "VIDEO INFO:dts:%lld, pts:%lld \n", pkt->dts, pkt->pts);
+
+                    videoPacketCount++;
+                    //printf("pts:%lld, dts:%lld\n", pkt->pts, pkt->dts);
+                    if (pkt->pts == AV_NOPTS_VALUE || pkt->dts == AV_NOPTS_VALUE) {
+                        printf("invalidate pts, key frame:%d", pkt->flags & AV_PKT_FLAG_KEY);
+                    } else {
+                        lastDts = pkt->dts;
+
+                        if (pkt->pts < pkt->dts) {
+                            printf("invalidate");
+                        }
+
+                        if (ptsSet.find(pkt->pts) != ptsSet.end()){
+                            printf("invalidate pts");
+                        } else {
+                            ptsSet.insert(pkt->pts);
+                        }
+                        
+                        if (dtsSet.find(pkt->dts) != dtsSet.end()) {
+                            printf("invalidate dts");
+                        } else {
+                            dtsSet.insert(pkt->dts);
+                        }
+                        
+                    }
+
 				}
+// 
+// 				if (out->writePacket(pkt) <0){
+// 					printf("write failed");
+// 				}
 				av_packet_free(&pkt);
 			} else {
 				break;
 			}
 		} while (true);
+
+
+        std::set<int64_t>::iterator ptsIt = ptsSet.begin();
+        std::set<int64_t>::iterator dtsIt = dtsSet.begin();
+
+        int64_t lastPts = 0;
+        while(ptsIt != ptsSet.end()){
+            av_log(NULL, AV_LOG_DEBUG, "VIDEO_INFO_PTS: pts:%lld, distance:%lld \n", *ptsIt, *ptsIt - lastPts);
+            lastPts = *ptsIt;
+            ptsIt++;
+        }
+
+        lastDts = 0;
+        while(dtsIt != dtsSet.end()){
+            av_log(NULL, AV_LOG_DEBUG, "VIDEO_INFO_DTS: pts:%lld, distance:%lld \n", *dtsIt, *dtsIt - lastDts);
+            lastDts = *dtsIt;
+            dtsIt++;
+        }
+
 
 		if (out != NULL){
 			delete out;

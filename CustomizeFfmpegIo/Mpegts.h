@@ -2,6 +2,7 @@
 #define TS_PACKET_SIZE 188
 #include <stdint.h>
 #include <vector>
+#include <map>
 
 typedef struct TsPatProgram
 {
@@ -30,6 +31,12 @@ typedef struct TsPatTable
 
 	unsigned crc_32                            : 32;  //CRC32Ð£ÑéÂë
 } TsPatTable;
+
+struct PesTime {
+    PesTime() : pts(0), dts(0) {}
+    int64_t pts;
+    int64_t dts;
+};
 
 typedef struct TsPmtStream    
 {    
@@ -68,6 +75,9 @@ typedef struct TsPmtTable
 	unsigned crc_32                            : 32;   
 } TsPmtTable;
 
+
+
+#define TS_PACKET_SIZE  188
 class Mpegts
 {
 public:
@@ -79,10 +89,21 @@ public:
 	int parsePat(TsPatTable *packet, unsigned char * buffer);
 	int parserPmt(TsPmtTable *pmt, uint8_t *data);
 
+    void testPtsDts();
+
+    void parserAllPackets(uint8_t *data, int dataSize);
+    bool parserPacketPts(uint8_t *data, PesTime &tm);
+    int64_t  getPts(uint8_t *data);
+
 	int makeTable(uint32_t *crc32_table);
 	uint32_t crc32Calculate(const uint8_t *buffer, uint32_t size,const uint32_t *crc32_table);
 public:
 	uint8_t mData[188];
+
+    int mPacketIndex;
+    std::map<int64_t, int64_t> mPesTime;
+    uint8_t mCurrentTsPacket[TS_PACKET_SIZE];
+    int mCurrentBufferSize;
 
 	uint8_t mPmtData[188];
 	uint32_t mCrcTable[256];

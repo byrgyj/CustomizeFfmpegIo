@@ -233,17 +233,21 @@ int DecodeVideoToPicture::saveToJPEG(AVFrame *pFrame, int width, int height, int
 
     av_free_packet(&pkt);
     av_write_trailer(pFormatCtx);
-    avio_close(pFormatCtx->pb);
+    
 
 error:
+
+    if (pAVStream != NULL) {
+        avcodec_close(pAVStream->codec);
+    }
+
+    avio_close(pFormatCtx->pb);
 
     if(pFormatCtx != NULL){
         avformat_free_context(pFormatCtx);
     }
 
-    if (pAVStream != NULL) {
-        avcodec_close(pAVStream->codec);
-    }
+   
 
     return 0;
 }
