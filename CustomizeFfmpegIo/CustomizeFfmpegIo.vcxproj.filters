@@ -45,6 +45,9 @@
     <ClInclude Include="Eac3Parser.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="decodeVideoToPicture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -72,6 +75,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Eac3Parser.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="decodeVideoToPicture.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

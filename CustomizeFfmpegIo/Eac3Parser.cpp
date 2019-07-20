@@ -153,28 +153,6 @@ char *DataBuffer::getData(int &dataSize) {
     }
 
     return data;
-
-//     char *data = NULL;
-// 
-//     if (mWriteIndex == 0) {
-//         if (!feof(mFile)) {
-//             fread(mBuffer, 1, mTotalBufferSize, mFile);
-//             mWriteIndex = mTotalBufferSize;
-//         }
-//     }
-// 
-//     if (mWriteIndex != 0) 
-//         int RequestSize = ( dataSize <= mWriteIndex   - mReadIndex ?  dataSize : mWriteIndex   - mReadIndex);
-//         if (RequestSize > 0){
-//             data = mBuffer + mReadIndex;
-//             mReadIndex += RequestSize;
-//             dataSize = RequestSize;
-//         } else {
-// 
-//         }
-//     }
-// 
-//     return NULL;
 }
 
 Eac3Context::Eac3Context() : mDataIndex(0) {
@@ -200,7 +178,7 @@ AVPacket *Eac3Context::readPacket() {
         }
         memcpy(mBuffer + dataIndex, data, dataSize);
         dataIndex += dataSize;
-
+        delete []data;
     } while (dataIndex < requestSize);
 
     int pos = findSyncByte(mBuffer, dataSize);

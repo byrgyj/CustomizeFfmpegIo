@@ -10,9 +10,12 @@
 #include "FFmpegReadFile.h"
 #include "FileMemoryCheck.h"
 #include "Eac3Parser.h"
+#include "decodeVideoToPicture.h"
+#include <list>
 
 FILE *logFile = NULL;
 
+#define MKTAG(a,b,c,d) ((a) | ((b) << 8) | ((c) << 16) | ((unsigned)(d) << 24))
 void logCallback(void*, int index, const char* fmt, va_list vl){
 	vfprintf(logFile, fmt,vl);
 	fflush(logFile);
@@ -24,7 +27,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	av_log_set_level(AV_LOG_WARNING);
 	av_log_set_callback(logCallback);
 
-	int debugIndex = 7;
+	int debugIndex = 8;
 	if (debugIndex == 0){
 		Mpegts ts;
 		ts.test();
@@ -169,17 +172,50 @@ end:
 			parser.parse();
 		}
 	} else if (debugIndex == 7) {
-        Eac3Context  ec;
-        AVPacket *pkt = NULL;
+        std::list<AVPacket*> pktQueue;
+        int loopCount = 20;
+        while(loopCount-- > 0){
+            Eac3Context  ec;
+            uint8_t *ptr = (uint8_t*)av_malloc(20000);
+//             AVPacket *pkt = NULL;
+//             do 
+//             {
+//                 pkt = ec.readPacket();
+//                 if (pkt == NULL) {
+//                     break;
+//                 }
+// 
+//                 printf("pkt->size:%d pkt->pts:%lld\n", pkt->size, pkt->pts);
+//                 pktQueue.push_back(pkt);
+//                 //av_packet_free(&pkt);
+//             } while (true);
+// 
+// 
+//             std::list<AVPacket*>::iterator it = pktQueue.begin();
+//             while (it != pktQueue.end()){
+//                 AVPacket *pkt = *it;
+//                 it =  pktQueue.erase(it);
+// 
+//                 av_packet_free(&pkt);
+//             }
+
+            av_freep(&ptr);
+        }
+    } else if (debugIndex == 8) {
+        //std::string file = "./ts/a883eace36ce22f8e788b2ed3463b7c7 (2).ts";
+        std::string file = "./h265/c35211fde34050288e2ec7d9db9343da.265ts";
+        DecodeVideoToPicture ff(file);
+        if (!ff.init()){
+            return false;
+        }
         do 
         {
-            pkt = ec.readPacket();
-            if (pkt == NULL) {
+            AVPacket *pkt = ff.getPacket(M_ALL);
+            if (pkt == NULL){
                 break;
             }
 
-            printf("pkt->size:%d pkt->pts:%lld\n", pkt->size, pkt->pts);
-            av_packet_unref(pkt);
+            ff.decodeVideoFrame(pkt);
             av_packet_free(&pkt);
         } while (true);
     }
