@@ -19,12 +19,18 @@ int readPacketCallBack(void *opaque, uint8_t *buf, int buf_size)
     return readSize;
 }
 
-DecodeVideoToPicture::DecodeVideoToPicture(const std::string &file) : mInputFile(file), mAvFmtCtx(NULL), mVideoCodec(NULL), mVideoCodecCtx(NULL), mFrameCount(0) {
+DecodeVideoToPicture::DecodeVideoToPicture(const std::string &file) : mInputFile(file), mAvFmtCtx(NULL), mVideoCodec(NULL), mVideoCodecCtx(NULL), mYUVFile(NULL), mFrameCount(0), mPacketCount(0) {
     av_register_all();
 }
 
 DecodeVideoToPicture::~DecodeVideoToPicture() {
+    if (mVideoCodecCtx != NULL) {
+        avcodec_free_context(&mVideoCodecCtx);
+    }
 
+    if (mAvFmtCtx != NULL) {
+        avformat_free_context(mAvFmtCtx);
+    }
 }
 
 bool DecodeVideoToPicture::init() {
@@ -103,7 +109,7 @@ int DecodeVideoToPicture::decodeVideoFrame(AVPacket *pkt) {
         return 0;
     }
 
-
+     mPacketCount++;
     if (pkt->stream_index == 0) {
         int ret = avcodec_send_packet(mVideoCodecCtx, pkt);
         AVFrame *frame = av_frame_alloc();
@@ -119,6 +125,9 @@ int DecodeVideoToPicture::decodeVideoFrame(AVPacket *pkt) {
             } else {
                 // 
                 mFrameCount++;
+
+#if 1
+
                 char* buf = new char[mVideoCodecCtx->height * mVideoCodecCtx->width * 3 / 2];
                 memset(buf, 0, mVideoCodecCtx->height * mVideoCodecCtx->width * 3 / 2);
                 int height = mVideoCodecCtx->height;
@@ -145,7 +154,7 @@ int DecodeVideoToPicture::decodeVideoFrame(AVPacket *pkt) {
                 buf = NULL;
 
                 mYUVSize += mVideoCodecCtx->height * mVideoCodecCtx->width * 3 / 2;
-
+#endif
                 /*SwsContext* swsContext = sws_getContext(frame->width, frame->height, mVideoCodecCtx->pix_fmt,frame->width, frame->height, AV_PIX_FMT_BGR24,
                     NULL, NULL, NULL, NULL);
 
@@ -179,9 +188,12 @@ int DecodeVideoToPicture::decodeVideoFrame(AVPacket *pkt) {
 int DecodeVideoToPicture::saveToJPEG(AVFrame *pFrame, int width, int height, int iIndex) {
     char out_file[1024] = {0};
     sprintf(out_file, "./pic/temp%d.jpg",  iIndex);
+    
+    AVFormatContext *pFormatCtx = NULL;
+    AVCodecContext *pCodecCtx = NULL;
+    AVStream *pAVStream = NULL;
 
-    // 分配AVFormatContext对象
-    AVFormatContext *pFormatCtx = avformat_alloc_context();
+    pFormatCtx = avformat_alloc_context();
     pFormatCtx->oformat = av_guess_format("mjpeg", NULL, NULL);
     if (pFormatCtx->oformat == NULL) {
        goto error;
@@ -193,12 +205,13 @@ int DecodeVideoToPicture::saveToJPEG(AVFrame *pFrame, int width, int height, int
     }
 
     // 构建一个新stream
-    AVStream *pAVStream = avformat_new_stream(pFormatCtx, NULL);
+    pAVStream = avformat_new_stream(pFormatCtx, NULL);
     if (pAVStream == NULL) {
         goto error;
     }
 
-    AVCodecContext *pCodecCtx = pAVStream->codec;
+    pCodecCtx = avcodec_alloc_context3(NULL);
+    //AVCodecContext *pCodecCtx = pAVStream->codec;
     pCodecCtx->codec_id = pFormatCtx->oformat->video_codec;
     pCodecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
     pCodecCtx->pix_fmt = AV_PIX_FMT_YUVJ420P;
@@ -213,7 +226,8 @@ int DecodeVideoToPicture::saveToJPEG(AVFrame *pFrame, int width, int height, int
         goto error;
     }
 
-    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
+    int ret = avcodec_open2(pCodecCtx, pCodec, NULL);
+    if (ret  < 0) {
         goto error;
     }
 
@@ -221,21 +235,31 @@ int DecodeVideoToPicture::saveToJPEG(AVFrame *pFrame, int width, int height, int
     AVPacket pkt;
     av_new_packet(&pkt, pCodecCtx->width * pCodecCtx->height * 3);
 
-    int got_picture = 0;
-    int ret = avcodec_encode_video2(pCodecCtx, &pkt, pFrame, &got_picture);
+    ret = avcodec_send_frame(pCodecCtx, pFrame);
     if (ret < 0) {
         goto error;
     }
 
-    if (got_picture == 1) {
-        ret = av_write_frame(pFormatCtx, &pkt);
+    while (ret >= 0) {
+        ret = avcodec_receive_packet(pCodecCtx, &pkt);
+        if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF){
+            break;
+        } else if (ret < 0) {
+            break;
+        } else {
+            av_write_frame(pFormatCtx, &pkt);
+        }
     }
-
-    av_free_packet(&pkt);
-    av_write_trailer(pFormatCtx);
     
 
+    //av_free_packet(&pkt);
+    av_packet_unref(&pkt);
+    av_write_trailer(pFormatCtx);
+   
 error:
+    if (pCodecCtx != NULL) {
+        avcodec_free_context(&pCodecCtx);
+    }
 
     if (pAVStream != NULL) {
         avcodec_close(pAVStream->codec);
@@ -266,7 +290,7 @@ int DecodeVideoToPicture::saveToBMP(AVFrame *pFrameRGB, int width, int height, i
         return -1;
     }
 
-    bmpheader.bfType = 0x4d42;
+    bmpheader.bfType = 0x4d42; // "BM"
     bmpheader.bfReserved1 = 0;
     bmpheader.bfReserved2 = 0;
     bmpheader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);

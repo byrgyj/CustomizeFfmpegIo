@@ -29,5 +29,6 @@ private:
 
     FILE *mYUVFile;
     int64_t mYUVSize;
+    int32_t mPacketCount;
     int32_t mFrameCount;
 };
